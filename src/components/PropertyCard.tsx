@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Heart, MapPin, Bed, Bath, Square, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -154,9 +155,11 @@ const PropertyCard = ({ property }: PropertyCardProps) => {
             </span>
             <span className="text-muted-foreground text-sm">/{property.duration}</span>
           </div>
-          <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-            View Details
-          </Button>
+          <Link to={`/property/${property.id}`}>
+            <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+              View Details
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
