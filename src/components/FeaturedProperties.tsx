@@ -9,7 +9,6 @@ const featuredProperties = [
     title: "Modern Luxury Apartment in Westlands",
     location: "Westlands, Nairobi",
     price: 150000,
-    currency: "KES",
     duration: "month",
     images: [
       "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80",
@@ -27,7 +26,6 @@ const featuredProperties = [
     title: "Beachfront Villa with Ocean Views",
     location: "Diani Beach, Mombasa",
     price: 25000,
-    currency: "KES",
     duration: "night",
     images: [
       "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80",
@@ -44,7 +42,6 @@ const featuredProperties = [
     title: "Cozy Studio in Karen",
     location: "Karen, Nairobi",
     price: 45000,
-    currency: "KES",
     duration: "month",
     images: [
       "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80",
@@ -61,7 +58,6 @@ const featuredProperties = [
     title: "Safari Lodge Experience",
     location: "Maasai Mara",
     price: 35000,
-    currency: "KES",
     duration: "night",
     images: [
       "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80",
@@ -78,7 +74,6 @@ const featuredProperties = [
     title: "Penthouse with City Skyline",
     location: "Kilimani, Nairobi",
     price: 280000,
-    currency: "KES",
     duration: "month",
     images: [
       "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",
@@ -95,7 +90,6 @@ const featuredProperties = [
     title: "Lakeside Cottage Retreat",
     location: "Naivasha",
     price: 18000,
-    currency: "KES",
     duration: "night",
     images: [
       "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80",
