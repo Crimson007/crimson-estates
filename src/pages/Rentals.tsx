@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { SlidersHorizontal, X, MapPin, Bed, Bath, Square, Heart, ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -479,9 +480,11 @@ const RentalPropertyCard = ({ property }: { property: RentalProperty }) => {
             </span>
             <span className="text-muted-foreground text-sm">/month</span>
           </div>
-          <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-            View Details
-          </Button>
+          <Link to={`/property/${property.id}`}>
+            <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+              View Details
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
