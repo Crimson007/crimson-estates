@@ -20,6 +20,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 // Sample rental properties data
 const rentalProperties = [
@@ -363,6 +364,7 @@ interface RentalProperty {
 const RentalPropertyCard = ({ property }: { property: RentalProperty }) => {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+  const { formatPrice } = useCurrency();
 
   const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -473,7 +475,7 @@ const RentalPropertyCard = ({ property }: { property: RentalProperty }) => {
         <div className="flex items-center justify-between pt-3 border-t border-border">
           <div>
             <span className="text-2xl font-bold text-primary">
-              KES {property.price.toLocaleString()}
+              {formatPrice(property.price)}
             </span>
             <span className="text-muted-foreground text-sm">/month</span>
           </div>

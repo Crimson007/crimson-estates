@@ -2,13 +2,13 @@ import { useState } from "react";
 import { Heart, MapPin, Bed, Bath, Square, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface Property {
   id: string;
   title: string;
   location: string;
   price: number;
-  currency: string;
   duration: string;
   images: string[];
   bedrooms: number;
@@ -25,6 +25,7 @@ interface PropertyCardProps {
 const PropertyCard = ({ property }: PropertyCardProps) => {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+  const { formatPrice } = useCurrency();
 
   const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -149,7 +150,7 @@ const PropertyCard = ({ property }: PropertyCardProps) => {
         <div className="flex items-center justify-between pt-3 border-t border-border">
           <div>
             <span className="text-2xl font-bold text-primary">
-              {property.currency} {property.price.toLocaleString()}
+              {formatPrice(property.price)}
             </span>
             <span className="text-muted-foreground text-sm">/{property.duration}</span>
           </div>

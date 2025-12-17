@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X, Home, Building, Palmtree } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import CurrencyToggle from "./CurrencyToggle";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -40,6 +41,7 @@ const Navbar = () => {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
+            <CurrencyToggle />
             <Button variant="outline" size="sm">
               List Property
             </Button>
@@ -77,13 +79,16 @@ const Navbar = () => {
                 <Palmtree className="w-4 h-4" />
                 Short Stays
               </Link>
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  List Property
-                </Button>
-                <Button size="sm" className="flex-1 bg-primary hover:bg-purple-dark">
-                  Sign In
-                </Button>
+              <div className="flex items-center justify-between pt-2 gap-2">
+                <CurrencyToggle />
+                <div className="flex gap-2 flex-1">
+                  <Button variant="outline" size="sm" className="flex-1">
+                    List Property
+                  </Button>
+                  <Button size="sm" className="flex-1 bg-primary hover:bg-purple-dark">
+                    Sign In
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
