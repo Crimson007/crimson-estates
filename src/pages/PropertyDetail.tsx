@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,80 +20,16 @@ import {
   UtensilsCrossed,
   Trees,
   X,
+  Loader2,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/contexts/CurrencyContext";
-
-// Sample property data - In production, this would come from CMS
-const propertiesData: Record<string, PropertyData> = {
-  "1": {
-    id: "1",
-    title: "Modern Luxury Apartment in Westlands",
-    description: "Experience luxury living in this stunning 3-bedroom apartment located in the heart of Westlands. This beautifully designed space features floor-to-ceiling windows offering panoramic city views, a fully equipped modern kitchen with premium appliances, and spacious bedrooms with en-suite bathrooms. The apartment comes fully furnished with high-end furniture and includes access to building amenities such as a rooftop pool, gym, and 24/7 security.",
-    location: "Westlands, Nairobi",
-    address: "123 Westlands Road, Nairobi, Kenya",
-    price: 150000,
-    duration: "month",
-    type: "long-term",
-    images: [
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=80",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&q=80",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=1200&q=80",
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&q=80",
-      "https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=1200&q=80",
-    ],
-    bedrooms: 3,
-    bathrooms: 2,
-    sqft: 1800,
-    isAvailable: true,
-    amenities: ["wifi", "parking", "gym", "pool", "security", "ac", "tv", "kitchen"],
-    coordinates: { lat: -1.2641, lng: 36.8032 },
-  },
-  "2": {
-    id: "2",
-    title: "Beachfront Villa with Ocean Views",
-    description: "Wake up to breathtaking ocean views in this stunning beachfront villa. Perfect for a tropical getaway, this 4-bedroom property offers direct beach access, a private infinity pool, and outdoor dining areas. The interior features a blend of modern comfort and coastal charm with locally sourced furnishings and artwork.",
-    location: "Diani Beach, Mombasa",
-    address: "Diani Beach Road, Kwale County, Kenya",
-    price: 25000,
-    duration: "night",
-    type: "short-stay",
-    images: [
-      "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80",
-      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200&q=80",
-      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=80",
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&q=80",
-    ],
-    bedrooms: 4,
-    bathrooms: 3,
-    sqft: 3200,
-    isAvailable: true,
-    amenities: ["wifi", "parking", "pool", "security", "ac", "tv", "kitchen", "garden"],
-    coordinates: { lat: -4.3167, lng: 39.5833 },
-  },
-};
-
-interface PropertyData {
-  id: string;
-  title: string;
-  description: string;
-  location: string;
-  address: string;
-  price: number;
-  duration: string;
-  type: string;
-  images: string[];
-  bedrooms: number;
-  bathrooms: number;
-  sqft: number;
-  isAvailable: boolean;
-  amenities: string[];
-  coordinates: { lat: number; lng: number };
-}
+import { supabase } from "@/integrations/supabase/client";
 
 const amenityIcons: Record<string, { icon: React.ElementType; label: string }> = {
   wifi: { icon: Wifi, label: "High-Speed WiFi" },
@@ -108,14 +45,70 @@ const amenityIcons: Record<string, { icon: React.ElementType; label: string }> =
 
 const PropertyDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const property = propertiesData[id || "1"];
   const { formatPrice } = useCurrency();
   
   const [currentImage, setCurrentImage] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
 
-  if (!property) {
+  // Fetch property data from Supabase
+  const { data: property, isLoading, error } = useQuery({
+    queryKey: ['property', id],
+    queryFn: async () => {
+      const { data: propertyData, error: propertyError } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (propertyError) throw propertyError;
+      if (!propertyData) return null;
+
+      // Fetch images for this property
+      const { data: images, error: imagesError } = await supabase
+        .from('property_images')
+        .select('*')
+        .eq('property_id', id)
+        .order('sort_order', { ascending: true });
+
+      if (imagesError) throw imagesError;
+
+      return {
+        ...propertyData,
+        images: images?.map(img => img.image_url) || [],
+      };
+    },
+    enabled: !!id,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8">
+          <Skeleton className="h-8 w-32 mb-6" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-8">
+            <Skeleton className="md:col-span-2 md:row-span-2 aspect-[4/3] md:aspect-auto h-[400px] rounded-2xl" />
+            <Skeleton className="hidden md:block aspect-video rounded-lg" />
+            <Skeleton className="hidden md:block aspect-video rounded-lg" />
+            <Skeleton className="hidden md:block aspect-video rounded-lg" />
+            <Skeleton className="hidden md:block aspect-video rounded-lg" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-10 w-3/4" />
+              <Skeleton className="h-6 w-1/2" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+            <Skeleton className="h-96 rounded-2xl" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !property) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -131,13 +124,20 @@ const PropertyDetail = () => {
     );
   }
 
+  const images = property.images.length > 0 
+    ? property.images 
+    : ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=80'];
+
   const nextImage = () => {
-    setCurrentImage((prev) => (prev + 1) % property.images.length);
+    setCurrentImage((prev) => (prev + 1) % images.length);
   };
 
   const prevImage = () => {
-    setCurrentImage((prev) => (prev - 1 + property.images.length) % property.images.length);
+    setCurrentImage((prev) => (prev - 1 + images.length) % images.length);
   };
+
+  const duration = property.price_period === 'month' ? 'month' : 
+                   property.price_period === 'week' ? 'week' : 'night';
 
   return (
     <div className="min-h-screen bg-background">
@@ -146,7 +146,7 @@ const PropertyDetail = () => {
       <main className="container mx-auto px-4 py-8">
         {/* Back Button */}
         <Link
-          to={property.type === "short-stay" ? "/airbnb" : "/rentals"}
+          to={property.property_type === "short-stay" ? "/airbnb" : "/rentals"}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-6"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -161,7 +161,7 @@ const PropertyDetail = () => {
             onClick={() => setIsGalleryOpen(true)}
           >
             <img
-              src={property.images[0]}
+              src={images[0]}
               alt={property.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
@@ -169,7 +169,7 @@ const PropertyDetail = () => {
           </div>
 
           {/* Thumbnail Grid */}
-          {property.images.slice(1, 5).map((image, idx) => (
+          {images.slice(1, 5).map((image, idx) => (
             <div
               key={idx}
               className="hidden md:block relative aspect-video cursor-pointer group"
@@ -184,9 +184,9 @@ const PropertyDetail = () => {
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-              {idx === 3 && property.images.length > 5 && (
+              {idx === 3 && images.length > 5 && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <span className="text-white font-semibold">+{property.images.length - 5} more</span>
+                  <span className="text-white font-semibold">+{images.length - 5} more</span>
                 </div>
               )}
             </div>
@@ -204,14 +204,14 @@ const PropertyDetail = () => {
                   <div className="flex items-center gap-2 mb-2">
                     <Badge
                       className={
-                        property.type === "short-stay"
+                        property.property_type === "short-stay"
                           ? "bg-secondary text-secondary-foreground"
                           : "bg-primary text-primary-foreground"
                       }
                     >
-                      {property.type === "short-stay" ? "Short Stay" : "Long-Term Rental"}
+                      {property.property_type === "short-stay" ? "Short Stay" : "Long-Term Rental"}
                     </Badge>
-                    {property.isAvailable ? (
+                    {property.is_available ? (
                       <Badge variant="outline" className="border-green-500 text-green-600">
                         Available
                       </Badge>
@@ -243,7 +243,7 @@ const PropertyDetail = () => {
 
               <div className="flex items-center gap-1 text-muted-foreground mb-4">
                 <MapPin className="w-4 h-4" />
-                <span>{property.address}</span>
+                <span>{property.address || property.location}</span>
               </div>
 
               <div className="flex items-center gap-6 text-muted-foreground">
@@ -255,10 +255,6 @@ const PropertyDetail = () => {
                   <Bath className="w-5 h-5" />
                   <span>{property.bathrooms} Bathrooms</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Square className="w-5 h-5" />
-                  <span>{property.sqft} sqft</span>
-                </div>
               </div>
             </div>
 
@@ -267,35 +263,52 @@ const PropertyDetail = () => {
             {/* Description */}
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-4">About this property</h2>
-              <p className="text-muted-foreground leading-relaxed">{property.description}</p>
+              <p className="text-muted-foreground leading-relaxed">
+                {property.description || "No description available."}
+              </p>
             </div>
 
             <Separator />
 
             {/* Amenities */}
-            <div>
-              <h2 className="text-xl font-semibold text-foreground mb-4">Amenities</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {property.amenities.map((amenity) => {
-                  const amenityData = amenityIcons[amenity];
-                  if (!amenityData) return null;
-                  const Icon = amenityData.icon;
-                  return (
-                    <div
-                      key={amenity}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Icon className="w-5 h-5 text-primary" />
-                      </div>
-                      <span className="text-sm text-foreground">{amenityData.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <Separator />
+            {property.amenities && property.amenities.length > 0 && (
+              <>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground mb-4">Amenities</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {property.amenities.map((amenity) => {
+                      const amenityData = amenityIcons[amenity.toLowerCase()];
+                      if (!amenityData) {
+                        return (
+                          <div
+                            key={amenity}
+                            className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Square className="w-5 h-5 text-primary" />
+                            </div>
+                            <span className="text-sm text-foreground">{amenity}</span>
+                          </div>
+                        );
+                      }
+                      const Icon = amenityData.icon;
+                      return (
+                        <div
+                          key={amenity}
+                          className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Icon className="w-5 h-5 text-primary" />
+                          </div>
+                          <span className="text-sm text-foreground">{amenityData.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
 
             {/* Map */}
             <div>
@@ -320,12 +333,12 @@ const PropertyDetail = () => {
             <div className="sticky top-24 bg-card rounded-2xl border border-border p-6 shadow-lg">
               <div className="mb-6">
                 <span className="text-3xl font-bold text-primary">
-                  {formatPrice(property.price)}
+                  {formatPrice(Number(property.price))}
                 </span>
-                <span className="text-muted-foreground">/{property.duration}</span>
+                <span className="text-muted-foreground">/{duration}</span>
               </div>
 
-              {property.type === "short-stay" && (
+              {property.property_type === "short-stay" && (
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="border border-border rounded-lg p-3">
                     <label className="text-xs text-muted-foreground block mb-1">CHECK-IN</label>
@@ -339,7 +352,7 @@ const PropertyDetail = () => {
               )}
 
               <Button className="w-full h-12 bg-primary hover:bg-purple-dark text-primary-foreground mb-3">
-                {property.type === "short-stay" ? "Book Now" : "Apply to Rent"}
+                {property.property_type === "short-stay" ? "Book Now" : "Apply to Rent"}
               </Button>
               
               <Button variant="outline" className="w-full h-12 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground">
@@ -355,18 +368,18 @@ const PropertyDetail = () => {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
-                    {formatPrice(property.price)} × 1 {property.duration}
+                    {formatPrice(Number(property.price))} × 1 {duration}
                   </span>
-                  <span className="text-foreground">{formatPrice(property.price)}</span>
+                  <span className="text-foreground">{formatPrice(Number(property.price))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Service fee</span>
-                  <span className="text-foreground">{formatPrice(Math.round(property.price * 0.05))}</span>
+                  <span className="text-foreground">{formatPrice(Math.round(Number(property.price) * 0.05))}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold">
                   <span className="text-foreground">Total</span>
-                  <span className="text-primary">{formatPrice(Math.round(property.price * 1.05))}</span>
+                  <span className="text-primary">{formatPrice(Math.round(Number(property.price) * 1.05))}</span>
                 </div>
               </div>
             </div>
@@ -392,7 +405,7 @@ const PropertyDetail = () => {
           </button>
 
           <img
-            src={property.images[currentImage]}
+            src={images[currentImage]}
             alt={`${property.title} ${currentImage + 1}`}
             className="max-w-[90vw] max-h-[85vh] object-contain"
           />
@@ -406,7 +419,7 @@ const PropertyDetail = () => {
 
           {/* Thumbnails */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-            {property.images.map((image, idx) => (
+            {images.map((image, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentImage(idx)}
@@ -420,7 +433,7 @@ const PropertyDetail = () => {
           </div>
 
           <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white">
-            {currentImage + 1} / {property.images.length}
+            {currentImage + 1} / {images.length}
           </div>
         </div>
       )}
