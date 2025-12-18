@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { SlidersHorizontal, X, MapPin, Bed, Bath, Square, Heart, ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -21,107 +21,79 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { supabase } from "@/integrations/supabase/client";
 
-// Sample rental properties data
-const rentalProperties = [
-  {
-    id: "1",
-    title: "Modern Luxury Apartment in Westlands",
-    location: "Westlands, Nairobi",
-    price: 150000,
-    images: [
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80",
-    ],
-    bedrooms: 3,
-    bathrooms: 2,
-    sqft: 1800,
-    isAvailable: true,
-  },
-  {
-    id: "2",
-    title: "Cozy Studio in Karen",
-    location: "Karen, Nairobi",
-    price: 45000,
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80",
-      "https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=800&q=80",
-    ],
-    bedrooms: 1,
-    bathrooms: 1,
-    sqft: 650,
-    isAvailable: true,
-  },
-  {
-    id: "3",
-    title: "Penthouse with City Skyline",
-    location: "Kilimani, Nairobi",
-    price: 280000,
-    images: [
-      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",
-    ],
-    bedrooms: 4,
-    bathrooms: 4,
-    sqft: 4000,
-    isAvailable: false,
-  },
-  {
-    id: "4",
-    title: "Family Home in Lavington",
-    location: "Lavington, Nairobi",
-    price: 200000,
-    images: [
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80",
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",
-    ],
-    bedrooms: 5,
-    bathrooms: 3,
-    sqft: 3500,
-    isAvailable: true,
-  },
-  {
-    id: "5",
-    title: "Elegant 2BR in Riverside",
-    location: "Riverside, Nairobi",
-    price: 120000,
-    images: [
-      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80",
-      "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800&q=80",
-    ],
-    bedrooms: 2,
-    bathrooms: 2,
-    sqft: 1200,
-    isAvailable: true,
-  },
-  {
-    id: "6",
-    title: "Spacious Apartment in Kileleshwa",
-    location: "Kileleshwa, Nairobi",
-    price: 95000,
-    images: [
-      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",
-      "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80",
-    ],
-    bedrooms: 3,
-    bathrooms: 2,
-    sqft: 1600,
-    isAvailable: true,
-  },
-];
-
-const locations = ["All Locations", "Westlands", "Karen", "Kilimani", "Lavington", "Riverside", "Kileleshwa"];
+interface RentalProperty {
+  id: string;
+  title: string;
+  location: string;
+  price: number;
+  images: string[];
+  bedrooms: number;
+  bathrooms: number;
+  isAvailable: boolean;
+}
 
 const RentalsPage = () => {
+  const [properties, setProperties] = useState<RentalProperty[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All Locations");
   const [selectedBedrooms, setSelectedBedrooms] = useState("any");
-  const [priceRange, setPriceRange] = useState([0, 300000]);
+  const [priceRange, setPriceRange] = useState([0, 500000]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  useEffect(() => {
+    fetchProperties();
+  }, []);
+
+  const fetchProperties = async () => {
+    try {
+      const { data: propertiesData, error } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('property_type', 'long-term')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch images for each property
+      const propertiesWithImages = await Promise.all(
+        (propertiesData || []).map(async (property) => {
+          const { data: images } = await supabase
+            .from('property_images')
+            .select('image_url')
+            .eq('property_id', property.id)
+            .order('sort_order');
+
+          return {
+            id: property.id,
+            title: property.title,
+            location: property.location,
+            price: property.price,
+            images: images?.map(img => img.image_url) || ['/placeholder.svg'],
+            bedrooms: property.bedrooms,
+            bathrooms: property.bathrooms,
+            isAvailable: property.is_available,
+          };
+        })
+      );
+
+      setProperties(propertiesWithImages);
+    } catch (error) {
+      console.error('Error fetching properties:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get unique locations from properties
+  const locations = ["All Locations", ...new Set(properties.map(p => p.location.split(',')[0].trim()))];
+
   // Filter properties based on criteria
-  const filteredProperties = rentalProperties.filter((property) => {
+  const filteredProperties = properties.filter((property) => {
     const matchesSearch = property.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       property.location.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesLocation = selectedLocation === "All Locations" || 
@@ -137,13 +109,13 @@ const RentalsPage = () => {
     setSearchQuery("");
     setSelectedLocation("All Locations");
     setSelectedBedrooms("any");
-    setPriceRange([0, 300000]);
+    setPriceRange([0, 500000]);
   };
 
   const activeFiltersCount = [
     selectedLocation !== "All Locations",
     selectedBedrooms !== "any",
-    priceRange[0] > 0 || priceRange[1] < 300000,
+    priceRange[0] > 0 || priceRange[1] < 500000,
   ].filter(Boolean).length;
 
   return (
@@ -216,7 +188,7 @@ const RentalsPage = () => {
                     <Slider
                       value={priceRange}
                       onValueChange={setPriceRange}
-                      max={300000}
+                      max={500000}
                       step={5000}
                       className="w-full"
                     />
@@ -297,7 +269,7 @@ const RentalsPage = () => {
                   <Slider
                     value={priceRange}
                     onValueChange={setPriceRange}
-                    max={300000}
+                    max={500000}
                     step={5000}
                     className="w-full"
                   />
@@ -324,7 +296,20 @@ const RentalsPage = () => {
         </div>
 
         {/* Property Grid */}
-        {filteredProperties.length > 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-card rounded-xl overflow-hidden border border-border">
+                <Skeleton className="aspect-[4/3] w-full" />
+                <div className="p-4 space-y-3">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredProperties.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProperties.map((property) => (
               <RentalPropertyCard key={property.id} property={property} />
@@ -349,145 +334,132 @@ const RentalsPage = () => {
   );
 };
 
-// Property Card Component specific to rentals
-interface RentalProperty {
-  id: string;
-  title: string;
-  location: string;
-  price: number;
-  images: string[];
-  bedrooms: number;
-  bathrooms: number;
-  sqft: number;
-  isAvailable: boolean;
-}
-
 const RentalPropertyCard = ({ property }: { property: RentalProperty }) => {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const { formatPrice } = useCurrency();
 
   const nextImage = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setCurrentImage((prev) => (prev + 1) % property.images.length);
   };
 
   const prevImage = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setCurrentImage((prev) => (prev - 1 + property.images.length) % property.images.length);
   };
 
   return (
-    <div className="group bg-card rounded-xl overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-      {/* Image Carousel */}
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <img
-          src={property.images[currentImage]}
-          alt={property.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-
-        {property.images.length > 1 && (
-          <>
-            <button
-              onClick={prevImage}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={nextImage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </>
-        )}
-
-        {property.images.length > 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-            {property.images.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCurrentImage(idx);
-                }}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  idx === currentImage ? "bg-white w-4" : "bg-white/60"
-                }`}
-              />
-            ))}
-          </div>
-        )}
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsLiked(!isLiked);
-          }}
-          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center hover:bg-white transition-colors"
-        >
-          <Heart
-            className={`w-5 h-5 transition-colors ${
-              isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
-            }`}
+    <Link to={`/property/${property.id}`} className="block">
+      <div className="group bg-card rounded-xl overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+        {/* Image Carousel */}
+        <div className="relative aspect-[4/3] overflow-hidden">
+          <img
+            src={property.images[currentImage]}
+            alt={property.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
-        </button>
+          
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
-        <div className="absolute top-3 left-3 flex gap-2">
-          <Badge className="bg-primary text-primary-foreground">
-            Long-Term
-          </Badge>
-          {!property.isAvailable && (
-            <Badge variant="destructive">Unavailable</Badge>
+          {property.images.length > 1 && (
+            <>
+              <button
+                onClick={prevImage}
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </>
           )}
+
+          {property.images.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {property.images.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setCurrentImage(idx);
+                  }}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    idx === currentImage ? "bg-white w-4" : "bg-white/60"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsLiked(!isLiked);
+            }}
+            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center hover:bg-white transition-colors"
+          >
+            <Heart
+              className={`w-5 h-5 transition-colors ${
+                isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
+              }`}
+            />
+          </button>
+
+          <div className="absolute top-3 left-3 flex gap-2">
+            <Badge className="bg-primary text-primary-foreground">
+              Long-Term
+            </Badge>
+            {!property.isAvailable && (
+              <Badge variant="destructive">Unavailable</Badge>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="p-4">
-        <h3 className="font-semibold text-lg text-card-foreground line-clamp-1 mb-2">
-          {property.title}
-        </h3>
+        {/* Content */}
+        <div className="p-4">
+          <h3 className="font-semibold text-lg text-card-foreground line-clamp-1 mb-2">
+            {property.title}
+          </h3>
 
-        <div className="flex items-center gap-1 text-muted-foreground mb-3">
-          <MapPin className="w-4 h-4" />
-          <span className="text-sm line-clamp-1">{property.location}</span>
-        </div>
+          <div className="flex items-center gap-1 text-muted-foreground mb-3">
+            <MapPin className="w-4 h-4" />
+            <span className="text-sm line-clamp-1">{property.location}</span>
+          </div>
 
-        <div className="flex items-center gap-4 text-muted-foreground text-sm mb-4">
-          <div className="flex items-center gap-1">
-            <Bed className="w-4 h-4" />
-            <span>{property.bedrooms}</span>
+          <div className="flex items-center gap-4 text-muted-foreground text-sm mb-4">
+            <div className="flex items-center gap-1">
+              <Bed className="w-4 h-4" />
+              <span>{property.bedrooms}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Bath className="w-4 h-4" />
+              <span>{property.bathrooms}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Bath className="w-4 h-4" />
-            <span>{property.bathrooms}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Square className="w-4 h-4" />
-            <span>{property.sqft} sqft</span>
-          </div>
-        </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div>
-            <span className="text-2xl font-bold text-primary">
-              {formatPrice(property.price)}
-            </span>
-            <span className="text-muted-foreground text-sm">/month</span>
-          </div>
-          <Link to={`/property/${property.id}`}>
-            <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+          <div className="flex items-center justify-between pt-3 border-t border-border">
+            <div>
+              <span className="text-2xl font-bold text-primary">
+                {formatPrice(property.price)}
+              </span>
+              <span className="text-muted-foreground text-sm">/month</span>
+            </div>
+            <Button size="sm" className="bg-primary hover:bg-primary/90">
               View Details
             </Button>
-          </Link>
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };
 
