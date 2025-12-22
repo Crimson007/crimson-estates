@@ -8,6 +8,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Index from "./pages/Index";
 import Rentals from "./pages/Rentals";
+import ShortStays from "./pages/ShortStays";
 import PropertyDetail from "./pages/PropertyDetail";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/admin/Dashboard";
@@ -29,6 +30,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/rentals" element={<Rentals />} />
+              <Route path="/airbnb" element={<ShortStays />} />
               <Route path="/property/:id" element={<PropertyDetail />} />
               <Route path="/auth" element={<Auth />} />
               
