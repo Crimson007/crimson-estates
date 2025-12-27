@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { SlidersHorizontal, X, MapPin, Bed, Bath, Heart, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
-import { format, addDays, differenceInDays } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { BookingModal } from "@/components/BookingModal";
 
 interface ShortStayProperty {
   id: string;
@@ -389,6 +390,7 @@ const ShortStaysPage = () => {
                 key={property.id} 
                 property={property} 
                 nightsCount={nightsCount}
+                dateRange={dateRange}
               />
             ))}
           </div>
@@ -411,15 +413,23 @@ const ShortStaysPage = () => {
   );
 };
 
+interface DateRange {
+  from: Date | undefined;
+  to?: Date | undefined;
+}
+
 const ShortStayPropertyCard = ({ 
   property, 
-  nightsCount 
+  nightsCount,
+  dateRange,
 }: { 
   property: ShortStayProperty;
   nightsCount: number;
+  dateRange: DateRange;
 }) => {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
   const { formatPrice } = useCurrency();
 
   const totalPrice = nightsCount > 0 ? property.price * nightsCount : property.price;
@@ -436,136 +446,160 @@ const ShortStayPropertyCard = ({
     setCurrentImage((prev) => (prev - 1 + property.images.length) % property.images.length);
   };
 
+  const handleBookClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsBookingOpen(true);
+  };
+
   return (
-    <Link to={`/property/${property.id}`} className="block">
-      <div className="group bg-card rounded-xl overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-        {/* Image Carousel */}
-        <div className="relative aspect-[4/3] overflow-hidden">
-          <img
-            src={property.images[currentImage]}
-            alt={property.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-          
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-
-          {property.images.length > 1 && (
-            <>
-              <button
-                onClick={prevImage}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={nextImage}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </>
-          )}
-
-          {property.images.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {property.images.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setCurrentImage(idx);
-                  }}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    idx === currentImage ? "bg-white w-4" : "bg-white/60"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsLiked(!isLiked);
-            }}
-            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center hover:bg-white transition-colors"
-          >
-            <Heart
-              className={`w-5 h-5 transition-colors ${
-                isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
-              }`}
+    <>
+      <Link to={`/property/${property.id}`} className="block">
+        <div className="group bg-card rounded-xl overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          {/* Image Carousel */}
+          <div className="relative aspect-[4/3] overflow-hidden">
+            <img
+              src={property.images[currentImage]}
+              alt={property.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
-          </button>
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
-          <div className="absolute top-3 left-3 flex gap-2">
-            <Badge className="bg-secondary text-secondary-foreground">
-              Short Stay
-            </Badge>
-            {!property.isAvailable && (
-              <Badge variant="destructive">Unavailable</Badge>
+            {property.images.length > 1 && (
+              <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
             )}
-          </div>
-        </div>
 
-        {/* Content */}
-        <div className="p-4">
-          <h3 className="font-semibold text-lg text-card-foreground line-clamp-1 mb-2">
-            {property.title}
-          </h3>
+            {property.images.length > 1 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {property.images.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setCurrentImage(idx);
+                    }}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      idx === currentImage ? "bg-white w-4" : "bg-white/60"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
 
-          <div className="flex items-center gap-1 text-muted-foreground mb-3">
-            <MapPin className="w-4 h-4" />
-            <span className="text-sm line-clamp-1">{property.location}</span>
-          </div>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsLiked(!isLiked);
+              }}
+              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center hover:bg-white transition-colors"
+            >
+              <Heart
+                className={`w-5 h-5 transition-colors ${
+                  isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
+                }`}
+              />
+            </button>
 
-          <div className="flex items-center gap-4 text-muted-foreground text-sm mb-4">
-            <div className="flex items-center gap-1">
-              <Bed className="w-4 h-4" />
-              <span>{property.bedrooms}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Bath className="w-4 h-4" />
-              <span>{property.bathrooms}</span>
-            </div>
-          </div>
-
-          {/* Amenities Preview */}
-          {property.amenities.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-4">
-              {property.amenities.slice(0, 3).map((amenity, idx) => (
-                <Badge key={idx} variant="outline" className="text-xs">
-                  {amenity}
-                </Badge>
-              ))}
-              {property.amenities.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{property.amenities.length - 3}
-                </Badge>
+            <div className="absolute top-3 left-3 flex gap-2">
+              <Badge className="bg-secondary text-secondary-foreground">
+                Short Stay
+              </Badge>
+              {!property.isAvailable && (
+                <Badge variant="destructive">Unavailable</Badge>
               )}
             </div>
-          )}
+          </div>
 
-          <div className="flex items-center justify-between pt-3 border-t border-border">
-            <div>
-              <span className="text-2xl font-bold text-primary">
-                {formatPrice(property.price)}
-              </span>
-              <span className="text-muted-foreground text-sm">/night</span>
-              {nightsCount > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  {formatPrice(totalPrice)} total
-                </div>
-              )}
+          {/* Content */}
+          <div className="p-4">
+            <h3 className="font-semibold text-lg text-card-foreground line-clamp-1 mb-2">
+              {property.title}
+            </h3>
+
+            <div className="flex items-center gap-1 text-muted-foreground mb-3">
+              <MapPin className="w-4 h-4" />
+              <span className="text-sm line-clamp-1">{property.location}</span>
             </div>
-            <Button size="sm" className="bg-primary hover:bg-primary/90">
-              Book Now
-            </Button>
+
+            <div className="flex items-center gap-4 text-muted-foreground text-sm mb-4">
+              <div className="flex items-center gap-1">
+                <Bed className="w-4 h-4" />
+                <span>{property.bedrooms}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Bath className="w-4 h-4" />
+                <span>{property.bathrooms}</span>
+              </div>
+            </div>
+
+            {/* Amenities Preview */}
+            {property.amenities.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-4">
+                {property.amenities.slice(0, 3).map((amenity, idx) => (
+                  <Badge key={idx} variant="outline" className="text-xs">
+                    {amenity}
+                  </Badge>
+                ))}
+                {property.amenities.length > 3 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{property.amenities.length - 3}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-3 border-t border-border">
+              <div>
+                <span className="text-2xl font-bold text-primary">
+                  {formatPrice(property.price)}
+                </span>
+                <span className="text-muted-foreground text-sm">/night</span>
+                {nightsCount > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {formatPrice(totalPrice)} total
+                  </div>
+                )}
+              </div>
+              <Button 
+                size="sm" 
+                className="bg-primary hover:bg-primary/90"
+                onClick={handleBookClick}
+              >
+                Book Now
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      <BookingModal
+        isOpen={isBookingOpen}
+        onClose={() => setIsBookingOpen(false)}
+        property={{
+          id: property.id,
+          title: property.title,
+          price: property.price,
+          bedrooms: property.bedrooms,
+        }}
+        dateRange={dateRange}
+      />
+    </>
   );
 };
 
